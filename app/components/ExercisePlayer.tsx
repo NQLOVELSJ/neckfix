@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { speakInstruction, stopSpeaking, initVoice } from "@/lib/voice";
+import { speakInstruction, speakIfSilent, stopSpeaking, initVoice } from "@/lib/voice";
 import type { Exercise } from "@/lib/exercises";
 import { saveRecordAsync } from "@/lib/storage";
 import ExerciseDemo from "@/app/components/ExerciseDemo";
@@ -49,7 +49,6 @@ export default function ExercisePlayer({
   const startedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<"inhale" | "hold" | "exhale">("inhale");
-  const stepRef = useRef(0);
 
   const current = exercises[currentIdx];
   const isLast = currentIdx >= exercises.length - 1;
@@ -69,15 +68,28 @@ export default function ExercisePlayer({
       setCurrentIdx(index);
       setTimeLeft(ex.duration);
       setPlaying(true);
-      stepRef.current = 0;
       phaseRef.current = "inhale";
       setPhase("inhale");
 
       initVoice();
-      speakInstruction(`${ex.name}，${ex.description}。准备好了吗？开始！`);
+
+      // First instruction as part of intro, remaining spread across duration
+      const firstInst = ex.instructions[0] || "";
+      speakInstruction(`${ex.name}。${firstInst}。准备好了吗？开始！`);
+
+      // Spread remaining instructions evenly: one per quarter of remaining time
+      const remaining = ex.instructions.slice(1);
+      const spacing = remaining.length > 0
+        ? Math.floor(ex.duration / (remaining.length + 1))
+        : 0;
+      let spokenIdx = 0;
 
       clearTimer();
+      let elapsed = 0;
+
       timerRef.current = setInterval(() => {
+        elapsed++;
+
         setTimeLeft((prev) => {
           if (prev <= 1) {
             clearTimer();
@@ -86,8 +98,8 @@ export default function ExercisePlayer({
           return prev - 1;
         });
 
-        stepRef.current++;
-        if (stepRef.current % 4 === 0) {
+        // Phase cycle every 4s
+        if (elapsed % 4 === 0) {
           phaseRef.current =
             phaseRef.current === "inhale"
               ? "hold"
@@ -95,13 +107,24 @@ export default function ExercisePlayer({
               ? "exhale"
               : "inhale";
           setPhase(phaseRef.current);
+
+          const word =
+            phaseRef.current === "inhale"
+              ? "吸气准备"
+              : phaseRef.current === "hold"
+              ? "保持"
+              : "缓慢还原";
+          speakIfSilent(word);
         }
 
-        if (stepRef.current === 1) {
-          speakInstruction(ex.instructions[0]);
-        } else if (stepRef.current % 6 === 0) {
-          const instIdx = Math.floor(stepRef.current / 6) % ex.instructions.length;
-          speakInstruction(ex.instructions[instIdx]);
+        // Milestone instructions at even intervals (non-interrupting after the intro)
+        if (
+          spacing > 0 &&
+          elapsed % spacing === 0 &&
+          spokenIdx < remaining.length
+        ) {
+          speakIfSilent(remaining[spokenIdx]);
+          spokenIdx++;
         }
       }, 1000);
     },
