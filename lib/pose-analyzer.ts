@@ -82,8 +82,9 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   const avgShoulderY = (leftShoulder.y + rightShoulder.y) / 2;
   const shoulderSpan = Math.abs(leftShoulder.x - rightShoulder.x);
 
-  // 1. Forward Head Posture: nose Z vs shoulder Z
-  const neckZDiff = nose.z - avgShoulderZ;
+  // 1. Forward Head Posture: how much nose is in front of shoulders
+  // MediaPipe Z: more negative = closer to camera. Nose in front of shoulders → nose.z < shoulder.z
+  const neckZDiff = avgShoulderZ - nose.z;
 
   // 2. Head Protrusion: nose Y relative to shoulder Y, normalized by span
   const headYDist = avgShoulderY - nose.y;

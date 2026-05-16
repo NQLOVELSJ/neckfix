@@ -48,11 +48,14 @@ export default function ExercisePlayer({
   const [finished, setFinished] = useState(false);
   const [restCountdown, setRestCountdown] = useState(0);
   const [side, setSide] = useState<"left" | "right">("left");
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const startedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<"inhale" | "hold" | "exhale">("inhale");
   const sideRef = useRef<"left" | "right">("left");
   const baseIdRef = useRef("");
+  const countdownStartedRef = useRef(false);
+  const voiceEnabledRef = useRef(true);
 
   const current = exercises[currentIdx];
   const isLast = currentIdx >= exercises.length - 1;
@@ -96,6 +99,19 @@ export default function ExercisePlayer({
     return phaseWords[baseId]?.[ph] || "";
   }
 
+  function safeSpeak(text: string) {
+    if (voiceEnabledRef.current) speakInstruction(text);
+  }
+  function safeSpeakIfSilent(text: string): boolean {
+    if (!voiceEnabledRef.current) return false;
+    return speakIfSilent(text);
+  }
+  function toggleVoice() {
+    voiceEnabledRef.current = !voiceEnabledRef.current;
+    setVoiceEnabled(voiceEnabledRef.current);
+    if (!voiceEnabledRef.current) stopSpeaking();
+  }
+
   const startExercise = useCallback(
     (index: number) => {
       const ex = exercises[index];
@@ -120,7 +136,7 @@ export default function ExercisePlayer({
 
       // Intro: exercise name + first instruction
       const firstInst = ex.instructions[0] || "";
-      speakInstruction(`${ex.name}。${firstInst}。准备好了吗？开始！`);
+      safeSpeak(`${ex.name}。${firstInst}。准备好了吗？开始！`);
 
       // Remaining instructions spread evenly
       const remaining = ex.instructions.slice(1);
@@ -161,7 +177,7 @@ export default function ExercisePlayer({
 
           // Exercise-specific phase cue — interrupting so user can follow by voice alone
           const word = getPhaseWord(bId, phaseRef.current, sideRef.current);
-          if (word) speakInstruction(word);
+          if (word) safeSpeak(word);
         }
 
         // Milestone instructions — non-interrupting secondary cues
@@ -170,7 +186,7 @@ export default function ExercisePlayer({
           elapsed % spacing === 0 &&
           spokenIdx < remaining.length
         ) {
-          speakIfSilent(remaining[spokenIdx]);
+          safeSpeakIfSilent(remaining[spokenIdx]);
           spokenIdx++;
         }
       }, 1000);
@@ -196,7 +212,7 @@ export default function ExercisePlayer({
         setPlaying(false);
         setFinished(true);
         stopSpeaking();
-        speakInstruction("训练完成！您做得很好，请继续保持。");
+        safeSpeak("训练完成！您做得很好，请继续保持。");
 
         const today = new Date().toISOString().slice(0, 10);
         saveRecordAsync({
@@ -206,31 +222,39 @@ export default function ExercisePlayer({
           severity,
           overallScore,
         });
-      } else {
+      } else if (!countdownStartedRef.current) {
         // 3-second countdown between exercises
+        countdownStartedRef.current = true;
         setPlaying(false);
         const next = currentIdx + 1;
         let count = 3;
         setRestCountdown(3);
-        speakInstruction("休息一下");
+        safeSpeak("休息一下");
 
         const cd = setInterval(() => {
           count--;
           setRestCountdown(count);
           if (count === 1) {
-            speakInstruction("准备");
+            safeSpeak("准备");
           }
           if (count <= 0) {
             clearInterval(cd);
             setRestCountdown(0);
+            countdownStartedRef.current = false;
             startExercise(next);
           }
         }, 1000);
 
-        return () => clearInterval(cd);
+        return () => {
+          clearInterval(cd);
+          countdownStartedRef.current = false;
+        };
       }
     }
-  }, [timeLeft, playing, finished, isLast, currentIdx, severity, overallScore, exercises, startExercise]);
+    // playing intentionally omitted from deps — setting it false inside effect
+    // must not trigger cleanup that kills the countdown interval.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, finished, isLast, currentIdx, severity, overallScore, exercises, startExercise]);
 
   useEffect(() => {
     return () => {
@@ -298,6 +322,21 @@ export default function ExercisePlayer({
       <p className="text-slate-500 text-sm mb-6">
         动作 {currentIdx + 1} / {exercises.length}
       </p>
+
+      {/* Voice toggle */}
+      <div className="flex justify-center mb-4">
+        <button
+          type="button"
+          onClick={toggleVoice}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation select-none cursor-pointer ${
+            voiceEnabled
+              ? "bg-teal-50 text-teal-600 border border-teal-200"
+              : "bg-slate-50 text-slate-400 border border-slate-200"
+          }`}
+        >
+          {voiceEnabled ? "🔊 语音开" : "🔇 语音关"}
+        </button>
+      </div>
 
       {/* Timer */}
       <div className="relative w-24 h-24 mx-auto mb-6">

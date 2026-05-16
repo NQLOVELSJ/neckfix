@@ -14,7 +14,7 @@ export const exercises: Exercise[] = [
     name: "下巴后缩",
     description: "收下巴做双下巴动作，感受颈后肌肉发力",
     level: "L1",
-    duration: 30,
+    duration: 36,
     instructions: [
       "坐直身体，目视前方",
       "缓慢将下巴向后平移，做出双下巴",
@@ -28,7 +28,7 @@ export const exercises: Exercise[] = [
     name: "下巴后缩",
     description: "靠墙练习，强化下巴后缩动作",
     level: "L2",
-    duration: 40,
+    duration: 48,
     instructions: [
       "背靠墙壁站立，脚跟离墙一拳",
       "后脑勺尽量贴近墙壁",
@@ -43,7 +43,7 @@ export const exercises: Exercise[] = [
     name: "下巴后缩（进阶）",
     description: "弹力带辅助抗阻训练",
     level: "L3",
-    duration: 45,
+    duration: 48,
     instructions: [
       "坐直，将弹力带置于脑后",
       "双手向前拉住弹力带两端",
@@ -57,7 +57,7 @@ export const exercises: Exercise[] = [
     name: "颈部前屈",
     description: "缓慢低头，拉伸颈后肌群",
     level: "L1",
-    duration: 30,
+    duration: 36,
     instructions: [
       "坐直身体，肩膀放松",
       "缓慢将下巴靠近胸口",
@@ -72,7 +72,7 @@ export const exercises: Exercise[] = [
     name: "颈部前屈",
     description: "增加活动范围和保持时间",
     level: "L2",
-    duration: 40,
+    duration: 48,
     instructions: [
       "坐直身体，肩膀下沉放松",
       "缓慢将下巴靠近胸口至最大范围",
@@ -87,7 +87,7 @@ export const exercises: Exercise[] = [
     name: "颈部前屈（进阶）",
     description: "强化离心控制",
     level: "L3",
-    duration: 45,
+    duration: 48,
     instructions: [
       "仰卧，头部悬空",
       "缓慢低头，下巴靠近胸口",
@@ -149,7 +149,7 @@ export const exercises: Exercise[] = [
     name: "肩胛收缩",
     description: "夹紧肩胛骨，改善圆肩驼背",
     level: "L1",
-    duration: 30,
+    duration: 36,
     instructions: [
       "坐直或站立，手臂自然下垂",
       "缓慢将两侧肩胛骨向中间夹紧",
@@ -163,7 +163,7 @@ export const exercises: Exercise[] = [
     name: "肩胛收缩",
     description: "手臂外展位强化训练",
     level: "L2",
-    duration: 40,
+    duration: 48,
     instructions: [
       "站立，双臂侧平举与肩同高",
       "手臂向后画圈，同时夹紧肩胛骨",
@@ -177,7 +177,7 @@ export const exercises: Exercise[] = [
     name: "肩胛收缩（进阶）",
     description: "弹力带抗阻训练",
     level: "L3",
-    duration: 45,
+    duration: 48,
     instructions: [
       "双手握住弹力带，手臂前伸与肩同高",
       "向两侧拉开弹力带，同时夹紧肩胛骨",
