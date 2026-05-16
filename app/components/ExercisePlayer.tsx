@@ -46,9 +46,13 @@ export default function ExercisePlayer({
   const [timeLeft, setTimeLeft] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [restCountdown, setRestCountdown] = useState(0);
+  const [side, setSide] = useState<"left" | "right">("left");
   const startedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<"inhale" | "hold" | "exhale">("inhale");
+  const sideRef = useRef<"left" | "right">("left");
+  const baseIdRef = useRef("");
 
   const current = exercises[currentIdx];
   const isLast = currentIdx >= exercises.length - 1;
@@ -60,24 +64,65 @@ export default function ExercisePlayer({
     }
   }, []);
 
+  const phaseWords: Record<string, Record<string, string>> = {
+    "chin-tuck": {
+      inhale: "吸气，准备后缩下巴",
+      hold: "下巴后缩，保持",
+      exhale: "缓慢还原，放松",
+    },
+    "neck-flexion": {
+      inhale: "吸气，准备低头",
+      hold: "低头前屈，保持",
+      exhale: "缓慢抬头，还原",
+    },
+    "lateral-flexion": {
+      inhale: "",
+      hold: "",
+      exhale: "缓慢回正",
+    },
+    "scapular-retraction": {
+      inhale: "吸气，准备收缩肩胛",
+      hold: "肩胛收缩，保持",
+      exhale: "缓慢放松",
+    },
+  };
+
+  function getPhaseWord(baseId: string, ph: string, sd: "left" | "right"): string {
+    if (baseId === "lateral-flexion") {
+      if (ph === "inhale") return sd === "right" ? "吸气，准备右侧屈" : "吸气，准备左侧屈";
+      if (ph === "hold") return sd === "right" ? "右侧屈，保持" : "左侧屈，保持";
+      return "缓慢回正";
+    }
+    return phaseWords[baseId]?.[ph] || "";
+  }
+
   const startExercise = useCallback(
     (index: number) => {
       const ex = exercises[index];
       if (!ex) return;
 
+      const bId = ex.id.replace(/-l[123]$/, "");
+      baseIdRef.current = bId;
+      const isLateral = bId === "lateral-flexion";
+
       setCurrentIdx(index);
+      setRestCountdown(0);
       setTimeLeft(ex.duration);
       setPlaying(true);
       phaseRef.current = "inhale";
       setPhase("inhale");
+      if (isLateral) {
+        sideRef.current = "left";
+        setSide("left");
+      }
 
       initVoice();
 
-      // First instruction as part of intro, remaining spread across duration
+      // Intro: exercise name + first instruction
       const firstInst = ex.instructions[0] || "";
       speakInstruction(`${ex.name}。${firstInst}。准备好了吗？开始！`);
 
-      // Spread remaining instructions evenly: one per quarter of remaining time
+      // Remaining instructions spread evenly
       const remaining = ex.instructions.slice(1);
       const spacing = remaining.length > 0
         ? Math.floor(ex.duration / (remaining.length + 1))
@@ -98,7 +143,7 @@ export default function ExercisePlayer({
           return prev - 1;
         });
 
-        // Phase cycle every 4s
+        // Phase cycle every 4s — voice synced with head movement
         if (elapsed % 4 === 0) {
           phaseRef.current =
             phaseRef.current === "inhale"
@@ -108,16 +153,18 @@ export default function ExercisePlayer({
               : "inhale";
           setPhase(phaseRef.current);
 
-          const word =
-            phaseRef.current === "inhale"
-              ? "吸气准备"
-              : phaseRef.current === "hold"
-              ? "保持"
-              : "缓慢还原";
-          speakIfSilent(word);
+          // For lateral flexion, toggle side at start of each new breath cycle (exhale→inhale)
+          if (isLateral && phaseRef.current === "inhale") {
+            sideRef.current = sideRef.current === "left" ? "right" : "left";
+            setSide(sideRef.current);
+          }
+
+          // Exercise-specific phase cue — interrupting so user can follow by voice alone
+          const word = getPhaseWord(bId, phaseRef.current, sideRef.current);
+          if (word) speakInstruction(word);
         }
 
-        // Milestone instructions at even intervals (non-interrupting after the intro)
+        // Milestone instructions — non-interrupting secondary cues
         if (
           spacing > 0 &&
           elapsed % spacing === 0 &&
@@ -160,9 +207,27 @@ export default function ExercisePlayer({
           overallScore,
         });
       } else {
+        // 3-second countdown between exercises
+        setPlaying(false);
         const next = currentIdx + 1;
-        speakInstruction("休息一下，准备下一个动作");
-        setTimeout(() => startExercise(next), 3000);
+        let count = 3;
+        setRestCountdown(3);
+        speakInstruction("休息一下");
+
+        const cd = setInterval(() => {
+          count--;
+          setRestCountdown(count);
+          if (count === 1) {
+            speakInstruction("准备");
+          }
+          if (count <= 0) {
+            clearInterval(cd);
+            setRestCountdown(0);
+            startExercise(next);
+          }
+        }, 1000);
+
+        return () => clearInterval(cd);
       }
     }
   }, [timeLeft, playing, finished, isLast, currentIdx, severity, overallScore, exercises, startExercise]);
@@ -196,12 +261,30 @@ export default function ExercisePlayer({
     );
   }
 
-  // Loading state before first exercise starts
-  if (!playing) {
+  // Loading state before first exercise starts (no countdown)
+  if (!playing && restCountdown === 0) {
     return (
       <div className="text-center py-12">
         <div className="w-12 h-12 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-slate-400 text-sm">准备训练...</p>
+      </div>
+    );
+  }
+
+  // Countdown between exercises
+  if (!playing && restCountdown > 0) {
+    return (
+      <div className="text-center py-16 animate-[fadeIn_0.2s_ease-out]">
+        <p className="text-slate-400 text-sm mb-2">
+          动作 {currentIdx + 1} 完成
+        </p>
+        <p className="text-slate-500 text-sm mb-4">休息一下，准备下一个动作</p>
+        <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto animate-[scaleIn_0.3s_ease-out]">
+          <span className="text-4xl font-bold text-teal-700">{restCountdown}</span>
+        </div>
+        <p className="text-slate-400 text-xs mt-3">
+          {restCountdown === 1 ? "即将开始..." : "深呼吸放松"}
+        </p>
       </div>
     );
   }
@@ -243,6 +326,7 @@ export default function ExercisePlayer({
         <ExerciseDemo
           exerciseId={current.id}
           phase={phase === "inhale" ? "idle" : phase}
+          side={baseIdRef.current === "lateral-flexion" ? side : undefined}
         />
       </div>
 

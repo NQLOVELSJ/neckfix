@@ -3,6 +3,7 @@
 interface Props {
   exerciseId: string;
   phase: "inhale" | "hold" | "exhale" | "idle";
+  side?: "left" | "right";
 }
 
 interface Coords {
@@ -13,7 +14,7 @@ interface Coords {
   leftHandX: number; rightHandX: number;
 }
 
-function computeCoords(exerciseId: string, active: boolean): Coords {
+function computeCoords(exerciseId: string, active: boolean, side?: "left" | "right"): Coords {
   const baseId = exerciseId.replace(/-l[123]$/, "");
   const rest: Coords = {
     headCX: 100, headCY: 52, headRX: 16, headRY: 20,
@@ -40,15 +41,17 @@ function computeCoords(exerciseId: string, active: boolean): Coords {
         headRY: 17,
         neckTopY: 78,
       };
-    case "lateral-flexion":
+    case "lateral-flexion": {
+      const isRight = side === "right";
       return {
         ...rest,
-        headCX: 90,
+        headCX: isRight ? 110 : 90,
         headCY: 56,
         headRY: 18,
-        neckTopX: 93,
+        neckTopX: isRight ? 107 : 93,
         neckTopY: 74,
       };
+    }
     case "scapular-retraction":
       return {
         ...rest,
@@ -65,7 +68,7 @@ function computeCoords(exerciseId: string, active: boolean): Coords {
   }
 }
 
-export default function ExerciseDemo({ exerciseId, phase }: Props) {
+export default function ExerciseDemo({ exerciseId, phase, side }: Props) {
   const active = phase === "hold" || phase === "exhale";
   const baseId = exerciseId.replace(/-l[123]$/, "");
   const isChinTuck = baseId === "chin-tuck";
@@ -73,7 +76,7 @@ export default function ExerciseDemo({ exerciseId, phase }: Props) {
   const isLateral = baseId === "lateral-flexion";
   const isScapular = baseId === "scapular-retraction";
 
-  const c = computeCoords(exerciseId, active);
+  const c = computeCoords(exerciseId, active, side);
   const t = "transition-all duration-700 ease-in-out";
 
   const arrowClass = `transition-opacity duration-500 ${active ? "opacity-100" : "opacity-25"}`;
@@ -97,8 +100,17 @@ export default function ExerciseDemo({ exerciseId, phase }: Props) {
         )}
         {isLateral && (
           <g className={arrowClass}>
-            <text x="78" y="46" fontSize="14" fill="#0d9488" fontWeight="bold">↖</text>
-            <text x="68" y="54" fontSize="9" fill="#0d9488">侧屈</text>
+            {side === "right" ? (
+              <>
+                <text x="108" y="46" fontSize="14" fill="#0d9488" fontWeight="bold">↗</text>
+                <text x="112" y="54" fontSize="9" fill="#0d9488">右侧屈</text>
+              </>
+            ) : (
+              <>
+                <text x="78" y="46" fontSize="14" fill="#0d9488" fontWeight="bold">↖</text>
+                <text x="68" y="54" fontSize="9" fill="#0d9488">左侧屈</text>
+              </>
+            )}
           </g>
         )}
         {isScapular && (
@@ -111,7 +123,7 @@ export default function ExerciseDemo({ exerciseId, phase }: Props) {
         {/* ── Target area glow ── */}
         {active && (
           <ellipse
-            cx={isScapular ? 100 : isLateral ? 130 : 100}
+            cx={isLateral ? (side === "right" ? 110 : 90) : 100}
             cy={isScapular ? 92 : isLateral ? 68 : isChinTuck ? 48 : 58}
             rx={isScapular ? 38 : 22}
             ry={isScapular ? 16 : 24}
@@ -216,20 +228,20 @@ export default function ExerciseDemo({ exerciseId, phase }: Props) {
             if (!active) {
               if (isChinTuck) return "准备后缩下巴";
               if (isNeckFlexion) return "准备低头前屈";
-              if (isLateral) return "准备侧屈颈部";
+              if (isLateral) return `准备${side === "right" ? "右侧" : "左侧"}屈`;
               if (isScapular) return "准备收缩肩胛";
               return "准备";
             }
             if (phase === "hold") {
               if (isChinTuck) return "保持后缩";
               if (isNeckFlexion) return "保持前屈";
-              if (isLateral) return "保持侧屈";
+              if (isLateral) return `保持${side === "right" ? "右侧" : "左侧"}屈`;
               if (isScapular) return "保持收缩";
               return "保持";
             }
             if (isChinTuck) return "缓慢还原";
             if (isNeckFlexion) return "缓慢抬头";
-            if (isLateral) return "缓慢回正";
+            if (isLateral) return `缓慢回正${side === "right" ? "（右侧完成）" : ""}`;
             if (isScapular) return "缓慢放松";
             return "还原";
           })();
