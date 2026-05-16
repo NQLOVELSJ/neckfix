@@ -209,16 +209,13 @@ export function getTrainingPlan(severity: "good" | "mild" | "moderate" | "severe
     return e.id === `${baseId}-l3` || e.id === `${baseId}-l2`;
   });
 
-  // Deduplicate by keeping highest level
-  const seen = new Set<string>();
-  const deduped: Exercise[] = [];
+  // Deduplicate by keeping highest level (L1→L2→L3, last wins)
+  const dedupedMap = new Map<string, Exercise>();
   for (const ex of planExercises) {
     const base = ex.id.replace(/-l[123]$/, "");
-    if (!seen.has(base)) {
-      seen.add(base);
-      deduped.push(ex);
-    }
+    dedupedMap.set(base, ex);
   }
+  const deduped = Array.from(dedupedMap.values());
 
   const totalDuration = deduped.reduce((sum, e) => sum + e.duration, 0);
   return { exercises: deduped, totalDuration, level };
