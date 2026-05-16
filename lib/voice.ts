@@ -33,12 +33,16 @@ export function speak(text: string, lang = "zh-CN", rate = 0.9): void {
   if (!synth) return;
 
   synth.cancel();
-  // Small delay after cancel to ensure speech engine is ready
-  setTimeout(() => doSpeak(text, lang, rate), 80);
+  setTimeout(() => doSpeak(text, lang, rate), 50);
 }
 
 export function speakInstruction(text: string): void {
-  speak(text, "zh-CN", 0.85);
+  speak(text, "zh-CN", 1.0);
+}
+
+// Faster rate for phase cues so voice keeps up with 4s breathing cycle
+export function speakFast(text: string): void {
+  speak(text, "zh-CN", 1.2);
 }
 
 // Non-interrupting speak — skips if something is already playing
@@ -50,7 +54,7 @@ export function speakIfSilent(text: string): boolean {
 
   if (synth.speaking) return false;
 
-  doSpeak(text, "zh-CN", 0.9);
+  doSpeak(text, "zh-CN", 1.0);
   return true;
 }
 

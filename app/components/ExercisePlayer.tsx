@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { speakInstruction, speakIfSilent, stopSpeaking, initVoice } from "@/lib/voice";
+import { speakInstruction, speakFast, speakIfSilent, stopSpeaking, initVoice } from "@/lib/voice";
 import type { Exercise } from "@/lib/exercises";
 import { saveRecordAsync } from "@/lib/storage";
 import ExerciseDemo from "@/app/components/ExerciseDemo";
@@ -102,6 +102,9 @@ export default function ExercisePlayer({
   function safeSpeak(text: string) {
     if (voiceEnabledRef.current) speakInstruction(text);
   }
+  function safeSpeakFast(text: string) {
+    if (voiceEnabledRef.current) speakFast(text);
+  }
   function safeSpeakIfSilent(text: string): boolean {
     if (!voiceEnabledRef.current) return false;
     return speakIfSilent(text);
@@ -175,9 +178,9 @@ export default function ExercisePlayer({
             setSide(sideRef.current);
           }
 
-          // Exercise-specific phase cue — interrupting so user can follow by voice alone
+          // Exercise-specific phase cue — faster rate to stay ahead of 4s cycle
           const word = getPhaseWord(bId, phaseRef.current, sideRef.current);
-          if (word) safeSpeak(word);
+          if (word) safeSpeakFast(word);
         }
 
         // Milestone instructions — non-interrupting secondary cues

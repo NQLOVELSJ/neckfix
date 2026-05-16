@@ -97,7 +97,8 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   const shoulderTilt = shoulderYDiff;
 
   // Convert to 0-100 scores (higher = worse)
-  const forwardHeadAngle = clamp(Math.round((neckZDiff / 0.2) * 100), 0, 100);
+  // Z from single camera is noisy; use a wider threshold to avoid saturating at 100%
+  const forwardHeadAngle = clamp(Math.round((neckZDiff / 0.45) * 100), 0, 100);
   const headProtrusion = clamp(Math.round(((0.8 - headYRatio) / 0.6) * 100), 0, 100);
   const shoulderShrug = clamp(Math.round((shoulderYDiff / 0.1) * 100), 0, 100);
   const bodyTilt = clamp(Math.round((shoulderTilt / 0.12) * 100), 0, 100);
