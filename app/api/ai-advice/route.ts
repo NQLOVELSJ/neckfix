@@ -1,5 +1,6 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { generateText } from "ai";
+import { createClient } from "@/lib/supabase/server";
 
 const deepseek = createDeepSeek({
   apiKey: process.env.DEEPSEEK_API_KEY ?? "",
@@ -7,6 +8,12 @@ const deepseek = createDeepSeek({
 
 export async function POST(request: Request) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return Response.json({ error: "请先登录" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const {

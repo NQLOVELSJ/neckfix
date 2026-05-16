@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import CalendarHeatmap from "@/app/components/CalendarHeatmap";
 import StatsChart from "@/app/components/StatsChart";
-import { getRecords, getTotalStats } from "@/lib/storage";
+import { getRecords, getTotalStats, getRecordsAsync, getTotalStatsAsync, migrateLocalToSupabase } from "@/lib/storage";
 import type { TrainingRecord } from "@/lib/storage";
 
 export default function HistoryPage() {
   const [records, setRecords] = useState<TrainingRecord[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState<ReturnType<typeof getTotalStats> | null>(null);
 
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -16,10 +17,14 @@ export default function HistoryPage() {
 
   useEffect(() => {
     setMounted(true);
-    setRecords(getRecords());
+    async function load() {
+      await migrateLocalToSupabase();
+      const [recs, st] = await Promise.all([getRecordsAsync(), getTotalStatsAsync()]);
+      setRecords(recs);
+      setStats(st);
+    }
+    load();
   }, []);
-
-  const stats = mounted ? getTotalStats() : null;
 
   const monthRecords = records.filter((r) => {
     const [y, m] = r.date.split("-").map(Number);

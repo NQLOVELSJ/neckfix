@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { speakInstruction, stopSpeaking, initVoice } from "@/lib/voice";
 import type { Exercise } from "@/lib/exercises";
-import { saveRecord } from "@/lib/storage";
+import { saveRecordAsync } from "@/lib/storage";
 import ExerciseDemo from "@/app/components/ExerciseDemo";
 
 interface Props {
@@ -129,7 +129,7 @@ export default function ExercisePlayer({
         speakInstruction("训练完成！您做得很好，请继续保持。");
 
         const today = new Date().toISOString().slice(0, 10);
-        saveRecord({
+        saveRecordAsync({
           date: today,
           duration: exercises.reduce((s, e) => s + e.duration, 0),
           exercisesCompleted: exercises.length,
