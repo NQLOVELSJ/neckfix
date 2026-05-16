@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showEmailSent, setShowEmailSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,17 +39,32 @@ export default function SignupPage() {
       },
     });
 
+    setLoading(false);
+
     if (err) {
       setError(err.status === 429
         ? "注册过于频繁，请稍后再试"
         : err.message === "User already registered"
         ? "该邮箱已注册"
         : err.message);
-      setLoading(false);
     } else {
-      router.push("/history");
-      router.refresh();
+      setShowEmailSent(true);
     }
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    const supabase = createClient();
+    await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined,
+      },
+    });
+    setLoading(false);
   };
 
   return (
@@ -119,12 +135,55 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-400 mt-6">
-          已有账号？{" "}
-          <Link href="/auth/login" className="text-teal-600 font-medium no-underline hover:underline">
-            登录
-          </Link>
-        </p>
+        {/* Email sent confirmation */}
+        {showEmailSent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" style={{ animation: "fadeIn 0.15s ease-out" }}>
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl text-center" style={{ animation: "scaleIn 0.2s ease-out" }}>
+              <div className="w-14 h-14 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-teal-800 mb-2">确认邮件已发送</h2>
+              <p className="text-slate-500 text-sm mb-1">
+                我们已将确认邮件发送至
+              </p>
+              <p className="text-teal-700 font-semibold text-sm mb-4 break-all">
+                {email}
+              </p>
+              <p className="text-slate-400 text-xs mb-6">
+                请检查收件箱（及垃圾邮件箱），点击邮件中的确认链接完成注册。
+              </p>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 rounded-xl border border-teal-200 text-teal-600 font-medium text-sm active:bg-teal-50 transition-colors disabled:opacity-50 touch-manipulation select-none cursor-pointer"
+                >
+                  {loading ? "发送中..." : "重新发送确认邮件"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/auth/login")}
+                  className="w-full px-4 py-2.5 bg-teal-600 text-white rounded-xl font-medium text-sm active:bg-teal-800 transition-colors touch-manipulation select-none cursor-pointer"
+                >
+                  前往登录
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!showEmailSent && (
+          <p className="text-center text-sm text-slate-400 mt-6">
+            已有账号？{" "}
+            <Link href="/auth/login" className="text-teal-600 font-medium no-underline hover:underline">
+              登录
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );
