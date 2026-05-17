@@ -97,8 +97,8 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   const shoulderTilt = shoulderYDiff;
 
   // Convert to 0-100 scores (higher = worse)
-  // Calibrated: chin retracted ≈ 0.7 Z diff → ~18%, head fully forward ≈ 1.6 Z diff → ~100%
-  const forwardHeadAngle = clamp(Math.round(((neckZDiff - 0.5) / 1.1) * 100), 0, 100);
+  // Calibrated: chin retracted 0.7 → 0%, head fully forward 1.4 → 100%
+  const forwardHeadAngle = clamp(Math.round(((neckZDiff - 0.7) / 0.7) * 100), 0, 100);
   const headProtrusion = clamp(Math.round(((0.8 - headYRatio) / 0.6) * 100), 0, 100);
   const shoulderShrug = clamp(Math.round((shoulderYDiff / 0.1) * 100), 0, 100);
   const bodyTilt = clamp(Math.round((shoulderTilt / 0.12) * 100), 0, 100);
