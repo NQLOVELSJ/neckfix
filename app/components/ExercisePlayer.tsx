@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { speakInstruction, speakFast, speakIfSilent, stopSpeaking, initVoice } from "@/lib/voice";
+import { speakInstruction, stopSpeaking, initVoice } from "@/lib/voice";
 import type { Exercise } from "@/lib/exercises";
 import { saveRecordAsync } from "@/lib/storage";
 import ExerciseDemo from "@/app/components/ExerciseDemo";
@@ -67,52 +67,37 @@ export default function ExercisePlayer({
     }
   }, []);
 
-  const phaseWords: Record<string, Record<string, string>> = {
-    "chin-tuck": {
-      inhale: "吸气，准备后缩下巴",
-      hold: "下巴后缩，保持",
-      exhale: "缓慢还原，放松",
-    },
-    "neck-flexion": {
-      inhale: "吸气，准备低头",
-      hold: "低头前屈，保持",
-      exhale: "缓慢抬头，还原",
-    },
-    "lateral-flexion": {
-      inhale: "",
-      hold: "",
-      exhale: "缓慢回正",
-    },
-    "scapular-retraction": {
-      inhale: "吸气，准备收缩肩胛",
-      hold: "肩胛收缩，保持",
-      exhale: "缓慢放松",
-    },
-  };
-
-  function getPhaseWord(baseId: string, ph: string, sd: "left" | "right"): string {
-    if (baseId === "lateral-flexion") {
-      if (ph === "inhale") return sd === "right" ? "吸气，准备右侧屈" : "吸气，准备左侧屈";
-      if (ph === "hold") return sd === "right" ? "右侧屈，保持" : "左侧屈，保持";
-      return "缓慢回正";
-    }
-    return phaseWords[baseId]?.[ph] || "";
-  }
-
   function safeSpeak(text: string) {
     if (voiceEnabledRef.current) speakInstruction(text);
-  }
-  function safeSpeakFast(text: string) {
-    if (voiceEnabledRef.current) speakFast(text);
-  }
-  function safeSpeakIfSilent(text: string): boolean {
-    if (!voiceEnabledRef.current) return false;
-    return speakIfSilent(text);
   }
   function toggleVoice() {
     voiceEnabledRef.current = !voiceEnabledRef.current;
     setVoiceEnabled(voiceEnabledRef.current);
     if (!voiceEnabledRef.current) stopSpeaking();
+  }
+
+  // Short beep via Web Audio API for countdown ticks
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  function playBeep(freq = 880, duration = 0.12) {
+    if (!voiceEnabledRef.current) return;
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch {
+      // AudioContext not supported
+    }
   }
 
   const startExercise = useCallback(
@@ -136,17 +121,7 @@ export default function ExercisePlayer({
       }
 
       initVoice();
-
-      // Intro: exercise name + first instruction
-      const firstInst = ex.instructions[0] || "";
-      safeSpeak(`${ex.name}。${firstInst}。准备好了吗？开始！`);
-
-      // Remaining instructions spread evenly
-      const remaining = ex.instructions.slice(1);
-      const spacing = remaining.length > 0
-        ? Math.floor(ex.duration / (remaining.length + 1))
-        : 0;
-      let spokenIdx = 0;
+      safeSpeak(`${ex.name}。${ex.instructions[0] || ""}。开始！`);
 
       clearTimer();
       let elapsed = 0;
@@ -162,7 +137,7 @@ export default function ExercisePlayer({
           return prev - 1;
         });
 
-        // Phase cycle every 4s — voice synced with head movement
+        // Phase cycle every 4s — animation only, no voice
         if (elapsed % 4 === 0) {
           phaseRef.current =
             phaseRef.current === "inhale"
@@ -172,25 +147,10 @@ export default function ExercisePlayer({
               : "inhale";
           setPhase(phaseRef.current);
 
-          // For lateral flexion, toggle side at start of each new breath cycle (exhale→inhale)
           if (isLateral && phaseRef.current === "inhale") {
             sideRef.current = sideRef.current === "left" ? "right" : "left";
             setSide(sideRef.current);
           }
-
-          // Exercise-specific phase cue — faster rate to stay ahead of 4s cycle
-          const word = getPhaseWord(bId, phaseRef.current, sideRef.current);
-          if (word) safeSpeakFast(word);
-        }
-
-        // Milestone instructions — non-interrupting secondary cues
-        if (
-          spacing > 0 &&
-          elapsed % spacing === 0 &&
-          spokenIdx < remaining.length
-        ) {
-          safeSpeakIfSilent(remaining[spokenIdx]);
-          spokenIdx++;
         }
       }, 1000);
     },
@@ -226,19 +186,19 @@ export default function ExercisePlayer({
           overallScore,
         });
       } else if (!countdownStartedRef.current) {
-        // 3-second countdown between exercises
+        // 3-second countdown with beeps between exercises
         countdownStartedRef.current = true;
         setPlaying(false);
         const next = currentIdx + 1;
-        let count = 3;
         setRestCountdown(3);
-        safeSpeak("休息一下");
+        playBeep(660, 0.1);
 
+        let count = 3;
         const cd = setInterval(() => {
           count--;
           setRestCountdown(count);
-          if (count === 1) {
-            safeSpeak("准备");
+          if (count > 0) {
+            playBeep(count === 1 ? 880 : 660, 0.1);
           }
           if (count <= 0) {
             clearInterval(cd);
