@@ -195,9 +195,13 @@ function TrainContent() {
                       `目标肌群：${ex.targetMuscles}。时长${ex.duration}秒。`,
                       ...ex.instructions.map((step, i) => `第${i + 1}步：${step}`),
                     ];
-                    lines.forEach((line, i) => {
-                      setTimeout(() => speakInstruction(line), i * 2500);
-                    });
+                    // Chain with per-character delay so each line finishes before next starts
+                    const msPerChar = 300;
+                    let delay = 0;
+                    for (const line of lines) {
+                      setTimeout(() => speakInstruction(line), delay);
+                      delay += line.length * msPerChar + 500;
+                    }
                   }
 
                   return (
