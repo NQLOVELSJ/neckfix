@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import ExercisePlayer from "@/app/components/ExercisePlayer";
 import ExerciseDemo from "@/app/components/ExerciseDemo";
 import { getTrainingPlan } from "@/lib/exercises";
+import { speakInstruction, stopSpeaking, initVoice } from "@/lib/voice";
 
 export default function TrainPage() {
   return (
@@ -180,37 +181,84 @@ function TrainContent() {
                   <ExerciseDemo exerciseId={previewId} phase={previewPhase} />
                 </div>
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewPhase(p => p === "hold" ? "idle" : "hold")}
-                    className={`flex-1 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors touch-manipulation select-none ${
-                      previewPhase === "hold"
-                        ? "bg-slate-100 text-slate-500 border border-slate-200"
-                        : "bg-teal-600 text-white active:bg-teal-800"
-                    }`}
-                  >
-                    {previewPhase === "hold" ? "回到起始位" : "模拟动作"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewId(null)}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-medium text-sm active:bg-slate-100 transition-colors touch-manipulation select-none"
-                  >
-                    关闭
-                  </button>
-                </div>
-
                 {/* Exercise info */}
                 {(() => {
                   const ex = plan.exercises.find(e => e.id === previewId);
                   if (!ex) return null;
+
+                  function narrateExercise() {
+                    if (!ex) return;
+                    initVoice();
+                    stopSpeaking();
+                    const lines = [
+                      `${ex.name}。${ex.description}`,
+                      `目标肌群：${ex.targetMuscles}。时长${ex.duration}秒。`,
+                      ...ex.instructions.map((step, i) => `第${i + 1}步：${step}`),
+                    ];
+                    lines.forEach((line, i) => {
+                      setTimeout(() => speakInstruction(line), i * 2500);
+                    });
+                  }
+
                   return (
-                    <div className="mt-4 p-3 bg-teal-50 rounded-xl text-left">
-                      <div className="text-xs text-teal-700 space-y-1">
-                        <p><span className="font-medium">目标肌群：</span>{ex.targetMuscles}</p>
-                        <p><span className="font-medium">时长：</span>{ex.duration} 秒</p>
-                        <p><span className="font-medium">要点：</span>{ex.description}</p>
+                    <div className="mt-4 text-left space-y-3">
+                      {/* Meta info */}
+                      <div className="flex gap-3 text-xs text-slate-500">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded-full">🎯 {ex.targetMuscles}</span>
+                        <span className="bg-slate-100 px-2 py-0.5 rounded-full">⏱ {ex.duration}秒</span>
+                        <span className="bg-slate-100 px-2 py-0.5 rounded-full">📊 {ex.level}</span>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        {ex.description}
+                      </p>
+
+                      {/* Step flow */}
+                      <div className="bg-teal-50 rounded-xl p-3">
+                        <h4 className="text-xs font-semibold text-teal-700 mb-2">动作流程</h4>
+                        <ol className="space-y-1.5">
+                          {ex.instructions.map((step, i) => (
+                            <li key={i} className="flex gap-2 text-xs text-slate-600">
+                              <span className="shrink-0 w-5 h-5 bg-teal-200 text-teal-700 rounded-full flex items-center justify-center font-bold text-[10px]">
+                                {i + 1}
+                              </span>
+                              <span className="pt-0.5">{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      {/* Voice narration + action buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={narrateExercise}
+                          className="flex-1 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-medium active:bg-amber-100 transition-colors touch-manipulation select-none flex items-center justify-center gap-1"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5z" />
+                          </svg>
+                          语音讲解
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewPhase(p => p === "hold" ? "idle" : "hold")}
+                          className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium transition-colors touch-manipulation select-none ${
+                            previewPhase === "hold"
+                              ? "bg-slate-100 text-slate-500 border border-slate-200"
+                              : "bg-teal-600 text-white active:bg-teal-800"
+                          }`}
+                        >
+                          {previewPhase === "hold" ? "还原动作" : "模拟动作"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { stopSpeaking(); setPreviewId(null); }}
+                          className="px-3 py-2 rounded-xl border border-slate-200 text-slate-400 text-xs font-medium active:bg-slate-100 transition-colors touch-manipulation select-none"
+                        >
+                          关闭
+                        </button>
                       </div>
                     </div>
                   );
