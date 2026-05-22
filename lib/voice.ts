@@ -8,9 +8,35 @@ export function initVoice(): boolean {
 
 function getZhVoice(): SpeechSynthesisVoice | undefined {
   if (!synth) return undefined;
-  return synth.getVoices().find(
+  const zh = synth.getVoices().filter(
     (v) => v.lang.startsWith("zh-CN") || v.lang.startsWith("zh-TW") || v.lang.startsWith("zh"),
   );
+  if (zh.length === 0) return undefined;
+
+  // Prefer natural-sounding voices over robotic ones, ranked by quality
+  const prefer = [
+    "tingting",    // macOS — excellent female CN voice
+    "huihui",      // Windows — good female CN voice
+    "yaoyao",      // Windows 11 — newer female CN (Microsoft Speech)
+    "kangkang",    // Windows — male CN
+    "xiaoxiao",    // Edge/Win11 — neural female CN
+    "yunjian",     // Edge/Win11 — neural male CN
+    "xiaoyi",      // Edge/Win11 — neural female CN/TW
+    "yunxi",       // Edge/Win11 — neural male CN
+    "yunyang",     // Edge/Win11 — neural male CN
+    "xiaobei",     // Edge/Win11 — neural female CN (northeastern)
+    "xiaoni",      // Edge/Win11 — neural female CN
+    "xiaomo",      // Edge/Win11 — neural female CN/TW
+    "xiaoxuan",    // Edge/Win11 — neural female CN
+    "xiaohan",     // Edge/Win11 — neural female CN
+    "xiaorui",     // Edge/Win11 — neural female CN
+    "xiaoshuang",  // Edge/Win11 — neural child CN
+  ];
+  for (const name of prefer) {
+    const match = zh.find((v) => v.name.toLowerCase().includes(name));
+    if (match) return match;
+  }
+  return zh[0];
 }
 
 function doSpeak(text: string, lang: string, rate: number): void {
@@ -18,8 +44,8 @@ function doSpeak(text: string, lang: string, rate: number): void {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang;
   u.rate = rate;
-  u.pitch = 1.0;
-  u.volume = 1.0;
+  u.pitch = 1.1;  // slightly higher pitch sounds more natural in Chinese
+  u.volume = 0.95;
   const voice = getZhVoice();
   if (voice) u.voice = voice;
   synth.speak(u);
