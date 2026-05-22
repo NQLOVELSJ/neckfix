@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import { speakInstruction, stopSpeaking } from "@/lib/voice";
+import { useAuth } from "@/app/components/AuthProvider";
+import { useRouter } from "next/navigation";
 import type { PoseAnalysis } from "@/lib/pose-analyzer";
 
 interface Props {
@@ -10,6 +12,8 @@ interface Props {
 }
 
 export default function AIAdvice({ poseHistory, enabled }: Props) {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [advice, setAdvice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,8 +114,24 @@ export default function AIAdvice({ poseHistory, enabled }: Props) {
         </div>
       )}
 
-      {/* Manual trigger button */}
-      {!advice && !loading && !countdown && (
+      {/* Auth gate: only show button to logged-in users */}
+      {authLoading ? (
+        <div className="w-full px-4 py-3 bg-slate-50 rounded-xl text-center text-slate-400 text-sm">
+          加载中...
+        </div>
+      ) : !user ? (
+        <button
+          type="button"
+          onClick={() => router.push("/auth/login")}
+          className="w-full px-4 py-3 bg-amber-50 border border-dashed border-amber-300 text-amber-600 rounded-xl font-medium text-sm active:bg-amber-100 transition-colors touch-manipulation select-none flex items-center justify-center gap-2"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          登录后获取 AI 建议
+        </button>
+      ) : !advice && !loading && !countdown && (
         <button
           type="button"
           onClick={requestAdvice}
