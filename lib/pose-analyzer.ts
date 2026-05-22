@@ -88,9 +88,10 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
     ? (leftEar.z + rightEar.z) / 2
     : earVisibleL ? leftEar.z : rightEar.z;
 
-  // ── 1. Forward Head Posture — nose Z-depth (strong signal) normalized ──
-  // Nose Z protrudes more than ear Z → much better signal-to-noise ratio.
-  // Normalize by shoulderSpan for distance invariance.
+  // ── 1. Forward Head Posture — nose Z-depth ──
+  // Nose Z has the strongest depth signal (protrudes more than ears).
+  // NOT normalized by shoulderSpan because shoulderSpan changes with body movement.
+  // Users are guided to ~50cm distance → raw Z is distance-stable enough.
   //   MediaPipe Z: negative = toward camera (anterior)
   //   noseZDiff > 0 when nose is anterior to shoulders
   const noseZDiff = avgShoulderZ - nose.z;
@@ -107,34 +108,33 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   // ── 4. Shoulder Elevation Asymmetry ──
   const shoulderYDiff = Math.abs(leftShoulder.y - rightShoulder.y);
 
-  // ── 5. Coronal Head Tilt — fixed: use leftEye as reference for dx ──
+  // ── 5. Coronal Head Tilt — leftEye as reference for dx ──
   // leftEye.x > rightEye.x when facing camera (person's left is on image right)
   const tiltDy = leftEye.y - rightEye.y;
   const tiltDx = leftEye.x - rightEye.x;
   const coronalHeadTilt = Math.abs(tiltDx) > 0.001
     ? Math.atan2(tiltDy, tiltDx) * (180 / Math.PI)
     : 0;
-  // Now: 0° = level eyes facing camera, positive = left eye lower, negative = right eye lower
+  // 0° = level, positive = left eye lower, negative = right eye lower
 
   // ── Score conversion ──
+  // Calibrated from user data at ~50cm:
+  //   noseZDiff: retracted=0.87, forward=0.96
+  //   headYRatio: retracted=0.79, forward=0.77
+  // Expanded to full range: 0.80→0%, 1.20→100%
+  const fhpZNScore = clamp(Math.round(((noseZDiff - 0.80) / 0.40) * 100), 0, 100);
 
-  // noseZNorm: user's data needs to calibrate this.
-  // At ~50cm: expected ~2.5 (retracted) to ~4.5 (forward).
-  // Map: noseZNorm < 2.5 → 0%, noseZNorm > 4.5 → 100%
-  const fhpZNScore = clamp(Math.round(((noseZNorm - 2.5) / 2.0) * 100), 0, 100);
+  // headYRatio: smaller = worse protrusion. 0.85→0%, 0.50→100%
+  const headProtrusion = clamp(Math.round(((0.85 - headYRatio) / 0.35) * 100), 0, 100);
 
-  // headYRatio: smaller = worse protrusion
-  // 0.85+ → 0%, 0.45- → 100%
-  const headProtrusion = clamp(Math.round(((0.85 - headYRatio) / 0.40) * 100), 0, 100);
-
-  // Shoulder shrug: Y diff
-  const shoulderShrug = clamp(Math.round((shoulderYDiff / 0.1) * 100), 0, 100);
+  // Shoulder shrug: Y diff > 0.10 → 100%
+  const shoulderShrug = clamp(Math.round((shoulderYDiff / 0.10) * 100), 0, 100);
 
   // Coronal tilt: |angle| < 2° → 0%, > 10° → 100%
   const bodyTilt = clamp(Math.round((Math.abs(coronalHeadTilt) - 2) / 8 * 100), 0, 100);
 
-  // ── Combined forward head score: 60% Z-depth + 40% Y-protrusion ──
-  const forwardHeadAngle = clamp(Math.round(fhpZNScore * 0.60 + headProtrusion * 0.40), 0, 100);
+  // ── Forward head score: 70% Z-depth + 30% Y-protrusion ──
+  const forwardHeadAngle = clamp(Math.round(fhpZNScore * 0.70 + headProtrusion * 0.30), 0, 100);
 
   // ── Overall Score ──
   const overallScore = clamp(

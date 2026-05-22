@@ -27,7 +27,7 @@ export default function ResultsPanel({ analysis }: Props) {
     {
       label: "脖子前倾",
       score: analysis.forwardHeadAngle,
-      detail: `noseZNorm: ${analysis.details.noseZNorm.toFixed(3)}`,
+      detail: `Z深度: ${analysis.details.noseZDiff.toFixed(3)}`,
     },
     {
       label: "头部前伸",
@@ -105,7 +105,7 @@ export default function ResultsPanel({ analysis }: Props) {
         const span = analysis.details.shoulderSpan;
         let distMsg = "";
         let distColor = "";
-        if (span > 0.50) {
+        if (span > 0.70) {
           distMsg = "距离太近，请后退至约 50cm";
           distColor = "text-amber-600 bg-amber-50 border-amber-200";
         } else if (span < 0.20) {
