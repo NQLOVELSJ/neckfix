@@ -104,6 +104,18 @@ export default function ResultsPanel({ analysis }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Debug: raw data for calibration */}
+      <details className="mt-4 pt-3 border-t border-slate-100">
+        <summary className="text-xs text-slate-400 cursor-pointer select-none">校准数据 (点击展开)</summary>
+        <div className="mt-2 p-3 bg-slate-50 rounded-xl text-xs font-mono text-slate-500 space-y-1">
+          <div>CVA角: {analysis.details.cvaAngle.toFixed(2)}°</div>
+          <div>ear-shoulderZDiff: {analysis.details.earShoulderZDiff.toFixed(4)}</div>
+          <div>headYRatio: {analysis.details.headYRatio.toFixed(4)}</div>
+          <div>coronalTilt: {analysis.details.coronalHeadTilt.toFixed(2)}°</div>
+          <div>shoulderYDiff: {analysis.details.shoulderYDiff.toFixed(4)}</div>
+        </div>
+      </details>
     </div>
   );
 }
