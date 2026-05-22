@@ -105,6 +105,28 @@ export default function ResultsPanel({ analysis }: Props) {
         ))}
       </div>
 
+      {/* Distance indicator */}
+      {(() => {
+        const span = analysis.details.shoulderSpan;
+        let distMsg = "";
+        let distColor = "";
+        if (span > 0.50) {
+          distMsg = "距离太近，请后退至约 50cm";
+          distColor = "text-amber-600 bg-amber-50 border-amber-200";
+        } else if (span < 0.20) {
+          distMsg = "距离太远，请靠近至约 50cm";
+          distColor = "text-amber-600 bg-amber-50 border-amber-200";
+        } else {
+          distMsg = "距离适中";
+          distColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
+        }
+        return (
+          <div className={`mt-4 px-3 py-2 rounded-lg border text-xs font-medium ${distColor}`}>
+            {distMsg} (肩宽: {(span * 100).toFixed(0)}%)
+          </div>
+        );
+      })()}
+
       {/* Debug: raw data for calibration */}
       <details className="mt-4 pt-3 border-t border-slate-100">
         <summary className="text-xs text-slate-400 cursor-pointer select-none">校准数据 (点击展开)</summary>
@@ -112,6 +134,7 @@ export default function ResultsPanel({ analysis }: Props) {
           <div>CVA角: {analysis.details.cvaAngle.toFixed(2)}°</div>
           <div>ear-shoulderZDiff: {analysis.details.earShoulderZDiff.toFixed(4)}</div>
           <div>headYRatio: {analysis.details.headYRatio.toFixed(4)}</div>
+          <div>shoulderSpan: {analysis.details.shoulderSpan.toFixed(4)}</div>
           <div>coronalTilt: {analysis.details.coronalHeadTilt.toFixed(2)}°</div>
           <div>shoulderYDiff: {analysis.details.shoulderYDiff.toFixed(4)}</div>
         </div>

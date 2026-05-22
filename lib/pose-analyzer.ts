@@ -46,6 +46,7 @@ export interface PoseAnalysis {
     coronalHeadTilt: number;    // inter-eye line tilt angle in degrees
     earShoulderZDiff: number;   // ear Z depth forward of shoulders (rounded shoulder indicator)
     shoulderYDiff: number;      // left-right shoulder Y difference
+    shoulderSpan: number;       // shoulder width in normalized coords (proxy for camera distance)
   };
 }
 
@@ -195,7 +196,7 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
     overallScore,
     severity,
     timestamp: Date.now(),
-    details: { cvaAngle, headYRatio, coronalHeadTilt, earShoulderZDiff, shoulderYDiff },
+    details: { cvaAngle, headYRatio, coronalHeadTilt, earShoulderZDiff, shoulderYDiff, shoulderSpan },
   };
 }
 
