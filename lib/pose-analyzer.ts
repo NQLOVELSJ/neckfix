@@ -119,13 +119,10 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
 
   // ── Score conversion ──
   // Calibrated from user data at ~50cm:
-  //   noseZDiff: retracted=0.87, forward=0.96
-  //   headYRatio: retracted=0.79, forward=0.77
-  // Expanded to full range: 0.80→0%, 1.20→100%
-  const fhpZNScore = clamp(Math.round(((noseZDiff - 0.80) / 0.40) * 100), 0, 100);
-
-  // headYRatio: smaller = worse protrusion. 0.85→0%, 0.50→100%
-  const headProtrusion = clamp(Math.round(((0.85 - headYRatio) / 0.35) * 100), 0, 100);
+  //   noseZDiff: retracted=0.87, extreme forward=0.96 (narrow range at 50cm)
+  //   headYRatio: retracted=0.79, forward=0.72
+  const fhpZNScore = clamp(Math.round(((noseZDiff - 0.84) / 0.14) * 100), 0, 100);
+  const headProtrusion = clamp(Math.round(((0.82 - headYRatio) / 0.17) * 100), 0, 100);
 
   // Shoulder shrug: Y diff > 0.10 → 100%
   const shoulderShrug = clamp(Math.round((shoulderYDiff / 0.10) * 100), 0, 100);
@@ -133,17 +130,16 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   // Coronal tilt: |angle| < 2° → 0%, > 10° → 100%
   const bodyTilt = clamp(Math.round((Math.abs(coronalHeadTilt) - 2) / 8 * 100), 0, 100);
 
-  // ── Forward head score: 70% Z-depth + 30% Y-protrusion ──
-  const forwardHeadAngle = clamp(Math.round(fhpZNScore * 0.70 + headProtrusion * 0.30), 0, 100);
+  // ── Forward head score: 50% Z-depth + 50% Y-protrusion ──
+  const forwardHeadAngle = clamp(Math.round(fhpZNScore * 0.50 + headProtrusion * 0.50), 0, 100);
 
   // ── Overall Score ──
   const overallScore = clamp(
     Math.round(
       100 -
-        (forwardHeadAngle * 0.40 +
-          headProtrusion * 0.20 +
+        (forwardHeadAngle * 0.45 +
           shoulderShrug * 0.15 +
-          bodyTilt * 0.25),
+          bodyTilt * 0.40),
     ),
     0,
     100,
