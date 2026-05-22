@@ -23,11 +23,16 @@ export default function ResultsPanel({ analysis }: Props) {
     );
   }
 
+  const cvaLabel =
+    analysis.details.cvaAngle >= 50 ? "正常" :
+    analysis.details.cvaAngle >= 45 ? "轻度" :
+    analysis.details.cvaAngle >= 35 ? "中度" : "重度";
+
   const items = [
     {
-      label: "脖子前倾",
+      label: "颅椎角 (CVA)",
       score: analysis.forwardHeadAngle,
-      detail: `Z差值: ${analysis.details.neckZDiff.toFixed(3)}`,
+      detail: `${analysis.details.cvaAngle.toFixed(1)}° · ${cvaLabel}`,
     },
     {
       label: "头部前伸",
@@ -40,9 +45,9 @@ export default function ResultsPanel({ analysis }: Props) {
       detail: `肩高差: ${analysis.details.shoulderYDiff.toFixed(3)}`,
     },
     {
-      label: "身体倾斜",
+      label: "头部倾斜",
       score: analysis.bodyTilt,
-      detail: `倾斜差: ${analysis.details.shoulderTilt.toFixed(3)}`,
+      detail: `${Math.abs(analysis.details.coronalHeadTilt).toFixed(1)}° ${analysis.details.coronalHeadTilt > 0 ? "右倾" : "左倾"}`,
     },
   ];
 
