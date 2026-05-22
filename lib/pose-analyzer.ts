@@ -33,74 +33,26 @@ export interface Landmark {
 }
 
 export interface PoseAnalysis {
-  forwardHeadAngle: number;     // CVA-based 0-100 score (higher = worse FHP)
-  headProtrusion: number;       // head Y-ratio 0-100 score (higher = worse protrusion)
-  shoulderShrug: number;        // shoulder elevation asymmetry 0-100
-  bodyTilt: number;             // coronal head tilt 0-100 (higher = worse tilt)
+  forwardHeadAngle: number;     // 0-100 (nose Z + head Y combined, higher = worse FHP)
+  headProtrusion: number;       // 0-100 (nose Y ratio, higher = worse protrusion)
+  shoulderShrug: number;        // 0-100 (shoulder elevation asymmetry)
+  bodyTilt: number;             // 0-100 (coronal head tilt, higher = worse)
   overallScore: number;         // 0-100, higher = better posture
   severity: "good" | "mild" | "moderate" | "severe";
   timestamp: number;
   details: {
-    cvaAngle: number;           // craniovertebral angle in degrees (clinical gold standard)
-    headYRatio: number;         // nose-to-shoulder Y ratio normalized by shoulder span
-    coronalHeadTilt: number;    // inter-eye line tilt angle in degrees
-    earShoulderZDiff: number;   // ear Z depth forward of shoulders (rounded shoulder indicator)
-    shoulderYDiff: number;      // left-right shoulder Y difference
-    shoulderSpan: number;       // shoulder width in normalized coords (proxy for camera distance)
+    noseZDiff: number;           // raw nose Z depth forward of shoulders
+    noseZNorm: number;           // nose Z diff / shoulderSpan (distance-invariant)
+    headYRatio: number;          // nose-to-shoulder Y ratio / shoulderSpan
+    earYNorm: number;            // ear-to-shoulder Y ratio (alternative vertical metric)
+    coronalHeadTilt: number;     // head lateral tilt in degrees (0° = level)
+    shoulderYDiff: number;       // left-right shoulder Y difference
+    shoulderSpan: number;        // shoulder width in normalized coords (distance proxy)
   };
 }
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
-}
-
-/**
- * Compute Craniovertebral Angle (CVA) — the clinical gold standard for FHP assessment.
- *
- * Reference: Zárate-Tejero et al. (2024), Applied Sciences 14(19):8639
- *   - Mean CVA in healthy adults: 48.76° ± 6.77°
- *   - CVA measured as angle between horizontal through C7 and line from C7 to tragus
- *   - Landmarks: tragus (ear) → C7 spinous process (approximated by shoulder midpoint)
- *
- * MediaPipe coordinate system:
- *   Y: 0 at image top, increases downward
- *   Z: negative = toward camera (anterior), positive = away (posterior)
- *
- * In the sagittal (YZ) plane:
- *   dy = avgShoulderY - avgEarY     ear above shoulder → positive
- *   dz = avgShoulderZ - avgEarZ     ear anterior to shoulder (FHP) → positive
- *   CVA = atan2(dy, dz) * 180 / PI  angle from horizontal forward to tragus line
- *
- * Clinical interpretation (Singla et al. 2017, J Chiropr Med):
- *   CVA > 50°  → normal
- *   45-50°     → mild FHP
- *   35-45°     → moderate FHP
- *   CVA < 35°  → severe FHP
- */
-function computeCVA(
-  earY: number, earZ: number,
-  avgShoulderY: number, avgShoulderZ: number,
-): number {
-  const dy = avgShoulderY - earY;
-  const dz = avgShoulderZ - earZ;
-  if (Math.abs(dz) < 0.001) return 90; // ear directly above shoulder
-  return Math.atan2(dy, dz) * (180 / Math.PI);
-}
-
-/**
- * Coronal head tilt — lateral inclination measured via inter-eye line vs horizontal.
- *
- * Reference: Karbalaeimahdi et al. (2025), Scientific Reports
- *   Systematic review + meta-analysis of smartphone photogrammetry:
- *   inter-rater reliability ICC = 0.962, test-retest ICC = 0.898
- */
-function computeCoronalHeadTilt(
-  leftEye: Landmark, rightEye: Landmark,
-): number {
-  const dy = rightEye.y - leftEye.y;
-  const dx = rightEye.x - leftEye.x;
-  if (Math.abs(dx) < 0.001) return 0;
-  return Math.atan2(dy, dx) * (180 / Math.PI);
 }
 
 export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
@@ -114,14 +66,10 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   const leftShoulder = landmarks[LEFT_SHOULDER];
   const rightShoulder = landmarks[RIGHT_SHOULDER];
 
-  // Require shoulders (critical) + at least one ear (for CVA) + nose (for protrusion)
-  const earVisible =
-    (leftEar.visibility ?? 1) >= 0.5 || (rightEar.visibility ?? 1) >= 0.5;
   if (
     (nose.visibility !== undefined && nose.visibility < 0.5) ||
     (leftShoulder.visibility !== undefined && leftShoulder.visibility < 0.5) ||
-    (rightShoulder.visibility !== undefined && rightShoulder.visibility < 0.5) ||
-    !earVisible
+    (rightShoulder.visibility !== undefined && rightShoulder.visibility < 0.5)
   ) {
     return null;
   }
@@ -130,53 +78,72 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
   const avgShoulderY = (leftShoulder.y + rightShoulder.y) / 2;
   const shoulderSpan = Math.abs(leftShoulder.x - rightShoulder.x);
 
-  // Pick best ear by visibility
-  const useLeftEar = (leftEar.visibility ?? 1) >= (rightEar.visibility ?? 0);
-  const ear = useLeftEar ? leftEar : rightEar;
-  const avgEarY = (leftEar.visibility ?? 1) >= 0.5 && (rightEar.visibility ?? 1) >= 0.5
+  // Average ear position (use whichever ears are visible)
+  const earVisibleL = (leftEar.visibility ?? 1) >= 0.5;
+  const earVisibleR = (rightEar.visibility ?? 1) >= 0.5;
+  const avgEarY = earVisibleL && earVisibleR
     ? (leftEar.y + rightEar.y) / 2
-    : ear.y;
-  const avgEarZ = (leftEar.visibility ?? 1) >= 0.5 && (rightEar.visibility ?? 1) >= 0.5
+    : earVisibleL ? leftEar.y : rightEar.y;
+  const avgEarZ = earVisibleL && earVisibleR
     ? (leftEar.z + rightEar.z) / 2
-    : ear.z;
+    : earVisibleL ? leftEar.z : rightEar.z;
 
-  // ── 1. CVA (Craniovertebral Angle) — gold standard for FHP ──
-  // Replaces the old nose-Z-based forwardHeadAngle with the clinically-validated metric.
-  // CVA > 55° → score 0 (excellent), CVA < 35° → score 100 (severe)
-  // Linear mapping across the clinically-relevant 20° band.
-  const cvaAngle = computeCVA(avgEarY, avgEarZ, avgShoulderY, avgShoulderZ);
-  const forwardHeadAngle = clamp(Math.round(((55 - cvaAngle) / 20) * 100), 0, 100);
+  // ── 1. Forward Head Posture — nose Z-depth (strong signal) normalized ──
+  // Nose Z protrudes more than ear Z → much better signal-to-noise ratio.
+  // Normalize by shoulderSpan for distance invariance.
+  //   MediaPipe Z: negative = toward camera (anterior)
+  //   noseZDiff > 0 when nose is anterior to shoulders
+  const noseZDiff = avgShoulderZ - nose.z;
+  const noseZNorm = shoulderSpan > 0.01 ? noseZDiff / shoulderSpan : 0;
 
-  // ── 2. Head Protrusion — nose Y relative to shoulder Y, normalized by span ──
+  // ── 2. Head Protrusion — nose Y relative to shoulder Y ──
   const headYDist = avgShoulderY - nose.y;
   const headYRatio = shoulderSpan > 0.01 ? headYDist / shoulderSpan : 1.0;
-  const headProtrusion = clamp(Math.round(((0.8 - headYRatio) / 0.6) * 100), 0, 100);
 
-  // ── 3. Shoulder Elevation Asymmetry ──
+  // ── 3. Ear Y ratio — secondary vertical metric ──
+  const earYDist = avgShoulderY - avgEarY;
+  const earYNorm = shoulderSpan > 0.01 ? earYDist / shoulderSpan : 0;
+
+  // ── 4. Shoulder Elevation Asymmetry ──
   const shoulderYDiff = Math.abs(leftShoulder.y - rightShoulder.y);
+
+  // ── 5. Coronal Head Tilt — fixed: use leftEye as reference for dx ──
+  // leftEye.x > rightEye.x when facing camera (person's left is on image right)
+  const tiltDy = leftEye.y - rightEye.y;
+  const tiltDx = leftEye.x - rightEye.x;
+  const coronalHeadTilt = Math.abs(tiltDx) > 0.001
+    ? Math.atan2(tiltDy, tiltDx) * (180 / Math.PI)
+    : 0;
+  // Now: 0° = level eyes facing camera, positive = left eye lower, negative = right eye lower
+
+  // ── Score conversion ──
+
+  // noseZNorm: user's data needs to calibrate this.
+  // At ~50cm: expected ~2.5 (retracted) to ~4.5 (forward).
+  // Map: noseZNorm < 2.5 → 0%, noseZNorm > 4.5 → 100%
+  const fhpZNScore = clamp(Math.round(((noseZNorm - 2.5) / 2.0) * 100), 0, 100);
+
+  // headYRatio: smaller = worse protrusion
+  // 0.85+ → 0%, 0.45- → 100%
+  const headProtrusion = clamp(Math.round(((0.85 - headYRatio) / 0.40) * 100), 0, 100);
+
+  // Shoulder shrug: Y diff
   const shoulderShrug = clamp(Math.round((shoulderYDiff / 0.1) * 100), 0, 100);
 
-  // ── 4. Coronal Head Tilt — lateral head inclination ──
-  // Reference: Karbalaeimahdi et al. (2025), ICC = 0.962
-  // |tilt| < 2° → score 0, |tilt| > 10° → score 100
-  const coronalHeadTilt = computeCoronalHeadTilt(leftEye, rightEye);
+  // Coronal tilt: |angle| < 2° → 0%, > 10° → 100%
   const bodyTilt = clamp(Math.round((Math.abs(coronalHeadTilt) - 2) / 8 * 100), 0, 100);
 
-  // ── 5. Ear-Shoulder Z Depth (rounded shoulder / shoulder protraction) ──
-  // Included in details for diagnostic reference, factored into overall score
-  // via forwardHeadAngle since both measure anterior head/shoulder displacement.
-  const earShoulderZDiff = avgShoulderZ - avgEarZ;
+  // ── Combined forward head score: 60% Z-depth + 40% Y-protrusion ──
+  const forwardHeadAngle = clamp(Math.round(fhpZNScore * 0.60 + headProtrusion * 0.40), 0, 100);
 
   // ── Overall Score ──
-  // CVA-based FHP carries highest weight (40%) as the clinical gold standard.
-  // Head protrusion (25%), shoulder asymmetry (15%), coronal head tilt (20%).
   const overallScore = clamp(
     Math.round(
       100 -
         (forwardHeadAngle * 0.40 +
-          headProtrusion * 0.25 +
+          headProtrusion * 0.20 +
           shoulderShrug * 0.15 +
-          bodyTilt * 0.20),
+          bodyTilt * 0.25),
     ),
     0,
     100,
@@ -196,7 +163,15 @@ export function analyzePose(landmarks: Landmark[]): PoseAnalysis | null {
     overallScore,
     severity,
     timestamp: Date.now(),
-    details: { cvaAngle, headYRatio, coronalHeadTilt, earShoulderZDiff, shoulderYDiff, shoulderSpan },
+    details: {
+      noseZDiff,
+      noseZNorm,
+      headYRatio,
+      earYNorm,
+      coronalHeadTilt,
+      shoulderYDiff,
+      shoulderSpan,
+    },
   };
 }
 

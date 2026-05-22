@@ -37,9 +37,9 @@ export async function POST(request: Request) {
 
     const prompt = `你是一位资深的物理治疗师和姿势矫正专家。根据以下用户的姿态检测数据，请给出3-5条简洁实用的个性化纠正建议。使用中文回答，语气温暖而专业，每条建议不超过40个字。
 
-数据（基于临床摄影测量法，过去60秒内的平均值）：
-- 颅椎角(CVA)前倾程度: ${forwardHeadAngle}% (基于耳-肩角度，金标准指标，分数越高越严重)
-- 头部前伸程度: ${headProtrusion}% (鼻子相对肩膀的位置偏移)
+数据（过去60秒内的平均值）：
+- 脖子前倾程度: ${forwardHeadAngle}% (鼻子Z深度+头部Y位置综合评分，分数越高越严重)
+- 头部前伸程度: ${headProtrusion}% (鼻子相对肩膀的垂直偏移)
 - 耸肩不对称: ${shoulderShrug}% (双肩高度差异)
 - 头部侧倾: ${bodyTilt}% (双眼连线相对水平面的倾斜)
 - 综合评分: ${overallScore}/100

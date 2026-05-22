@@ -23,21 +23,16 @@ export default function ResultsPanel({ analysis }: Props) {
     );
   }
 
-  const cvaLabel =
-    analysis.details.cvaAngle >= 50 ? "正常" :
-    analysis.details.cvaAngle >= 45 ? "轻度" :
-    analysis.details.cvaAngle >= 35 ? "中度" : "重度";
-
   const items = [
     {
-      label: "颅椎角 (CVA)",
+      label: "脖子前倾",
       score: analysis.forwardHeadAngle,
-      detail: `${analysis.details.cvaAngle.toFixed(1)}° · ${cvaLabel}`,
+      detail: `noseZNorm: ${analysis.details.noseZNorm.toFixed(3)}`,
     },
     {
       label: "头部前伸",
       score: analysis.headProtrusion,
-      detail: `Y比率: ${analysis.details.headYRatio.toFixed(3)}`,
+      detail: `headYRatio: ${analysis.details.headYRatio.toFixed(3)}`,
     },
     {
       label: "耸肩程度",
@@ -47,7 +42,7 @@ export default function ResultsPanel({ analysis }: Props) {
     {
       label: "头部倾斜",
       score: analysis.bodyTilt,
-      detail: `${Math.abs(analysis.details.coronalHeadTilt).toFixed(1)}° ${analysis.details.coronalHeadTilt > 0 ? "右倾" : "左倾"}`,
+      detail: `${Math.abs(analysis.details.coronalHeadTilt).toFixed(1)}° ${analysis.details.coronalHeadTilt > 0 ? "左低" : "右低"}`,
     },
   ];
 
@@ -131,12 +126,14 @@ export default function ResultsPanel({ analysis }: Props) {
       <details className="mt-4 pt-3 border-t border-slate-100">
         <summary className="text-xs text-slate-400 cursor-pointer select-none">校准数据 (点击展开)</summary>
         <div className="mt-2 p-3 bg-slate-50 rounded-xl text-xs font-mono text-slate-500 space-y-1">
-          <div>CVA角: {analysis.details.cvaAngle.toFixed(2)}°</div>
-          <div>ear-shoulderZDiff: {analysis.details.earShoulderZDiff.toFixed(4)}</div>
+          <div className="font-semibold text-slate-600">需要记录的值：</div>
+          <div className="text-emerald-600 font-semibold">noseZNorm: {analysis.details.noseZNorm.toFixed(4)}</div>
+          <div>noseZDiff(raw): {analysis.details.noseZDiff.toFixed(4)}</div>
           <div>headYRatio: {analysis.details.headYRatio.toFixed(4)}</div>
           <div>shoulderSpan: {analysis.details.shoulderSpan.toFixed(4)}</div>
-          <div>coronalTilt: {analysis.details.coronalHeadTilt.toFixed(2)}°</div>
+          <div>tilt: {analysis.details.coronalHeadTilt.toFixed(2)}°</div>
           <div>shoulderYDiff: {analysis.details.shoulderYDiff.toFixed(4)}</div>
+          <div>earYNorm: {analysis.details.earYNorm.toFixed(4)}</div>
         </div>
       </details>
     </div>
