@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { speakInstruction, stopSpeaking, initVoice } from "@/lib/voice";
 import type { Exercise } from "@/lib/exercises";
 import { saveRecordAsync } from "@/lib/storage";
@@ -15,21 +16,59 @@ interface Props {
 
 function BreathingCircle({ phase }: { phase: "inhale" | "hold" | "exhale" }) {
   const scaleClass =
-    phase === "inhale" ? "scale-125" : phase === "exhale" ? "scale-90" : "scale-105";
-  const colorClass =
     phase === "inhale"
-      ? "border-teal-400 bg-teal-500/30"
+      ? "scale-125"
+      : phase === "exhale"
+      ? "scale-90"
+      : "scale-105";
+  const gradientClass =
+    phase === "inhale"
+      ? "from-teal-400/40 to-emerald-400/40"
       : phase === "hold"
-      ? "border-amber-400 bg-amber-500/20"
-      : "border-emerald-400 bg-emerald-500/30";
+      ? "from-amber-400/30 to-yellow-400/30"
+      : "from-teal-400/40 to-emerald-500/40";
+
+  const charMap = {
+    inhale: "吸气",
+    hold: "保持",
+    exhale: "呼气",
+  };
 
   return (
-    <div className="relative w-32 h-32 mx-auto">
-      <div
-        className={`absolute inset-0 rounded-full border-2 transition-all duration-[2s] ease-in-out ${colorClass} ${scaleClass}`}
+    <div className="relative w-40 h-40 mx-auto">
+      {/* Inner pulsing ring */}
+      <motion.div
+        className={`absolute inset-2 rounded-full bg-gradient-to-br ${gradientClass}`}
+        animate={{
+          scale: phase === "inhale" ? [1, 1.15, 1] : phase === "hold" ? [1, 1.07, 1] : [1, 0.93, 1],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
       />
-      <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-teal-700">
-        {phase === "inhale" ? "吸" : phase === "hold" ? "停" : "呼"}
+      {/* Outer ring */}
+      <div
+        className={`absolute inset-0 rounded-full border-[3px] transition-all duration-[2s] ease-in-out ${
+          phase === "inhale"
+            ? "border-teal-400/60"
+            : phase === "hold"
+            ? "border-amber-400/50"
+            : "border-emerald-400/60"
+        } ${scaleClass}`}
+      />
+      {/* Character display */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`text-sm font-bold tracking-widest transition-colors duration-500 ${
+          phase === "inhale"
+            ? "text-teal-700"
+            : phase === "hold"
+            ? "text-amber-700"
+            : "text-emerald-700"
+        }`}>
+          {charMap[phase]}
+        </span>
       </div>
     </div>
   );
@@ -226,24 +265,88 @@ export default function ExercisePlayer({
     };
   }, [clearTimer]);
 
+  // ── Completed state ──
   if (finished) {
     return (
-      <div className="text-center py-12">
-        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-spring-in">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <h3 className="text-2xl font-bold text-teal-800 mb-2">训练完成!</h3>
-        <p className="text-slate-400 mb-6">
-          已完成 {exercises.length} 个动作，共 {Math.round(exercises.reduce((s, e) => s + e.duration, 0) / 60)} 分钟
-        </p>
-        <button
-          onClick={onComplete}
-          className="px-6 py-3 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition-colors"
+      <div className="text-center py-10">
+        {/* Checkmark with spring animation */}
+        <motion.div
+          className="w-24 h-24 mx-auto mb-5 relative"
+          initial={{ scale: 0, rotate: -45 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{
+            type: "spring",
+            stiffness: 260,
+            damping: 20,
+            delay: 0.1,
+          }}
         >
-          查看记录
-        </button>
+          <div className="absolute inset-0 bg-emerald-100 rounded-full" />
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.35, duration: 0.4, ease: "easeOut" }}
+          >
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </motion.div>
+        </motion.div>
+
+        {/* Celebration floating particles */}
+        <div className="relative h-0">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute left-1/2 top-0 w-2 h-2 rounded-full"
+              style={{
+                backgroundColor: ["#10b981", "#0d9488", "#14b8a6", "#34d399", "#6ee7b7", "#f59e0b"][i],
+              }}
+              initial={{ opacity: 0, x: 0, y: 0 }}
+              animate={{
+                opacity: [0, 1, 0],
+                x: (i % 2 === 0 ? 1 : -1) * (20 + Math.random() * 60),
+                y: -(30 + Math.random() * 50),
+                scale: [0.5, 1.2, 0.6],
+              }}
+              transition={{
+                duration: 1.5 + Math.random() * 1,
+                delay: 0.5 + i * 0.12,
+                ease: "easeOut",
+              }}
+            />
+          ))}
+        </div>
+
+        <motion.h3
+          className="text-2xl font-bold text-teal-800 mb-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.3 }}
+        >
+          训练完成!
+        </motion.h3>
+        <motion.p
+          className="text-slate-400 mb-6 text-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.3 }}
+        >
+          已完成 {exercises.length} 个动作，共 {Math.round(exercises.reduce((s, e) => s + e.duration, 0) / 60)} 分钟
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.3 }}
+        >
+          <button
+            onClick={onComplete}
+            className="px-8 py-3 bg-gradient-to-r from-teal-600 to-teal-500 text-white rounded-xl font-medium transition-all duration-300 hover:from-teal-700 hover:to-teal-600 shadow-lg shadow-teal-500/25 cursor-pointer active:scale-[0.98]"
+          >
+            查看记录
+          </button>
+        </motion.div>
       </div>
     );
   }
@@ -252,8 +355,10 @@ export default function ExercisePlayer({
   if (!playing && restCountdown === 0) {
     return (
       <div className="text-center py-12">
-        <div className="w-12 h-12 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-400 text-sm">准备训练...</p>
+        <div className="w-12 h-12 border-[3px] border-slate-200 rounded-full mx-auto mb-4 relative">
+          <div className="absolute inset-[-3px] rounded-full border-[3px] border-transparent border-t-teal-500 animate-spin" />
+        </div>
+        <p className="text-slate-400 text-sm animate-pulse">准备训练...</p>
       </div>
     );
   }
@@ -261,28 +366,71 @@ export default function ExercisePlayer({
   // Countdown between exercises
   if (!playing && restCountdown > 0) {
     return (
-      <div className="text-center py-16 animate-[fadeIn_0.2s_ease-out]">
-        <p className="text-slate-400 text-sm mb-2">
+      <div className="text-center py-16">
+        <motion.p
+          className="text-slate-400 text-sm mb-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           动作 {currentIdx + 1} 完成
-        </p>
-        <p className="text-slate-500 text-sm mb-4">休息一下，准备下一个动作</p>
-        <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto animate-[scaleIn_0.3s_ease-out]">
-          <span className="text-4xl font-bold text-teal-700">{restCountdown}</span>
-        </div>
-        <p className="text-slate-400 text-xs mt-3">
+        </motion.p>
+        <p className="text-slate-500 text-sm mb-6">休息一下，准备下一个动作</p>
+
+        {/* Countdown number with scale animation */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={restCountdown}
+            className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-teal-400/20 to-emerald-400/20 flex items-center justify-center border-2 border-teal-200/40"
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 1.4, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
+          >
+            <motion.span
+              className="text-5xl font-bold text-teal-600"
+              initial={{ scale: 0.6 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+            >
+              {restCountdown}
+            </motion.span>
+          </motion.div>
+        </AnimatePresence>
+
+        <motion.p
+          className="text-slate-400 text-xs"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
           {restCountdown === 1 ? "即将开始..." : "深呼吸放松"}
-        </p>
+        </motion.p>
       </div>
     );
   }
 
+  // ── Active exercise view ──
   return (
-    <div className="text-center py-8 animate-[fadeIn_0.3s_ease-out]">
-      <h3 className="text-2xl font-bold text-teal-800 mb-1">{current.name}</h3>
-      <p className="text-slate-400 text-sm mb-2">
-        {current.targetMuscles} · 难度 {current.level}
-      </p>
-      <p className="text-slate-500 text-sm mb-6">
+    <motion.div
+      className="text-center py-6"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Exercise name */}
+      <h3 className="text-2xl font-bold text-teal-800 mb-1 tracking-tight">{current.name}</h3>
+      <div className="flex items-center justify-center gap-3 mb-2">
+        <span className="text-xs text-slate-400 inline-flex items-center gap-1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {current.targetMuscles}
+        </span>
+        <span className="text-xs text-slate-300">|</span>
+        <span className="text-xs text-slate-400">
+          难度 {current.level}
+        </span>
+      </div>
+      <p className="text-slate-400 text-xs mb-5">
         动作 {currentIdx + 1} / {exercises.length}
       </p>
 
@@ -291,35 +439,60 @@ export default function ExercisePlayer({
         <button
           type="button"
           onClick={toggleVoice}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation select-none cursor-pointer ${
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer select-none ${
             voiceEnabled
-              ? "bg-teal-50 text-teal-600 border border-teal-200"
-              : "bg-slate-50 text-slate-400 border border-slate-200"
+              ? "bg-teal-50 text-teal-600 border border-teal-200 hover:bg-teal-100 shadow-sm"
+              : "bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100"
           }`}
         >
-          {voiceEnabled ? "🔊 语音开" : "🔇 语音关"}
+          {voiceEnabled ? (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5z" />
+              </svg>
+              <span>语音开</span>
+              {/* Active indicator dot */}
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5zM23 9l-6 6m0-6l6 6" />
+              </svg>
+              <span>语音关</span>
+            </>
+          )}
         </button>
       </div>
 
-      {/* Timer */}
-      <div className="relative w-24 h-24 mx-auto mb-6">
-        <svg className="w-24 h-24 -rotate-90" viewBox="0 0 36 36">
-          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+      {/* Timer ring with gradient stroke */}
+      <div className="relative w-28 h-28 mx-auto mb-6">
+        <svg className="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
+          <defs>
+            <linearGradient id="timer-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#0d9488" />
+              <stop offset="50%" stopColor="#14b8a6" />
+              <stop offset="100%" stopColor="#10b981" />
+            </linearGradient>
+          </defs>
+          {/* Background ring */}
+          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="2.5" />
+          {/* Progress ring with gradient */}
           <circle
             cx="18"
             cy="18"
             r="15.5"
             fill="none"
-            stroke="#0d9488"
-            strokeWidth="3"
+            stroke="url(#timer-gradient)"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeDasharray={`${(timeLeft / current.duration) * 97.4} 97.4`}
             className="transition-all duration-1000"
           />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-2xl font-bold text-teal-700">{timeLeft}</span>
-          <span className="text-xs text-slate-300 ml-0.5 mt-1">s</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-bold text-teal-700 leading-none">{timeLeft}</span>
+          <span className="text-[10px] text-slate-300 mt-0.5">秒</span>
         </div>
       </div>
 
@@ -334,6 +507,6 @@ export default function ExercisePlayer({
 
       {/* Breathing indicator */}
       <BreathingCircle phase={phase} />
-    </div>
+    </motion.div>
   );
 }
